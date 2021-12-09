@@ -27,28 +27,24 @@ app.get("/", function (req, res) {
   db.collection("users")
     .find()
     .toArray(function (error, result) {
-      console.log(result);
       res.status(200).json(result);
     });
 });
 
 app.post("/add", function (req, res) {
-  let number = 0;
-  // console.log(req.body, "[[[[[");
-  db.collection("userCount").findOne({ name: "postNumber" }, (err, res) => {
-    number = res;
-  });
-  db.collection("post").insertOne(
-    { _id: number.total + 9, name: req.body.name },
-    () => {
-      console.log("저장완료");
-    }
-  );
+  db.collection("userCount")
+    .find()
+    .toArray((err, res) => {
+      db.collection("users").insertOne(
+        { _id: res.length, name: req.body.name },
+        () => {
+          console.log("저장완료");
+        }
+      );
+      db.collection("userCount").insertOne({ name: "postNumber" }, () => {
+        console.log("저장완료");
+      });
+    });
 });
 
 app.get("/product", sendPosts);
-
-// app.post("/add", function (req, res) {
-//   console.log(req.body);
-//   res.send("완료");
-// });
