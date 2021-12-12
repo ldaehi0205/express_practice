@@ -4,8 +4,16 @@ const { sendPosts, endPointMessage } = require("./functions");
 const cors = require("cors");
 const app = express();
 const MongoClient = require("mongodb").MongoClient;
+const passport = require("passport");
+const LocalStrategy = require("passport-local").Strategy;
+const session = require("express-session");
 
-// app.get("/", endPointMessage);
+app.use(
+  session({ secret: "secret1111", resave: true, saveUninitialized: false })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
 let db;
 MongoClient.connect(
   "mongodb+srv://daehee:ldh642@cluster0.gvc4d.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
@@ -21,7 +29,14 @@ MongoClient.connect(
 );
 
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    //To allow requests from client
+    origin: ["http://localhost:3000"],
+    credentials: true,
+    exposedHeaders: ["Set-Cookie"],
+  })
+);
 
 app.get("/", function (req, res) {
   db.collection("users")
@@ -48,3 +63,49 @@ app.post("/add", function (req, res) {
 });
 
 app.get("/product", sendPosts);
+
+app.post(
+  "/login",
+  passport.authenticate("local", { failureRedirect: "/fail" }),
+  function (req, res) {
+    // req.redirect("/");
+    console.log(req, "000000");
+    res.status(200).json(req.session);
+  }
+);
+
+passport.use(
+  new LocalStrategy(
+    {
+      usernameField: "id",
+      passwordField: "pw",
+      session: true,
+      passReqToCallback: false,
+    },
+    function (입력한아이디, 입력한비번, done) {
+      db.collection("login").findOne(
+        { id: 입력한아이디 },
+        function (에러, 결과) {
+          if (에러) return done(에러);
+
+          if (!결과) {
+            return done(null, false, { message: "존재하지않는 아이디요" });
+          }
+          if (입력한비번 == 결과.pw) {
+            return done(null, 결과);
+          } else {
+            return done(null, false, { message: "비번틀렸어요" });
+          }
+        }
+      );
+    }
+  )
+);
+
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function (user, done) {
+  done(null, {});
+});
