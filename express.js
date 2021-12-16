@@ -7,34 +7,44 @@ const MongoClient = require("mongodb").MongoClient;
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
-
+// const dotenv = require("dotenv");
+// dotenv.config();
+require("dotenv").config();
 app.use(
-  session({ secret: "secret1111", resave: true, saveUninitialized: false })
+  session({
+    secret: "secret1111",
+    resave: false,
+    httpOnly: true, //자바스크립트를 통해 세션 쿠키를 사용할 수 없도록 함
+    secure: true,
+    saveUninitialized: true,
+    cookie: {
+      // cookie가 사라지는 시간
+      maxAge: 60 * 1000,
+    },
+  })
 );
 app.use(passport.initialize());
 app.use(passport.session());
 
 let db;
-MongoClient.connect(
-  "mongodb+srv://daehee:ldh642@cluster0.gvc4d.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
-  function (error, client) {
-    if (error) return console.log(error);
+MongoClient.connect(process.env.MONGODB_STORE, function (error, client) {
+  if (error) return console.log(error);
 
-    db = client.db("myFirstDatabase");
+  db = client.db("myFirstDatabase");
 
-    app.listen(8000, function () {
-      console.log("listening on 8000");
-    });
-  }
-);
+  app.listen(8000, function () {
+    console.log("listening on 8000");
+  });
+});
 
 app.use(express.json());
 app.use(
   cors({
-    //To allow requests from client
+    // To allow requests from client
     origin: ["http://localhost:3000"],
     credentials: true,
-    exposedHeaders: ["Set-Cookie"],
+    // exposedHeaders: ["Set-Cookie"],
+    // withCredentials: true,
   })
 );
 
@@ -68,8 +78,6 @@ app.post(
   "/login",
   passport.authenticate("local", { failureRedirect: "/fail" }),
   function (req, res) {
-    // req.redirect("/");
-    console.log(req, "000000");
     res.status(200).json(req.session);
   }
 );
