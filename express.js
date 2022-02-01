@@ -1,15 +1,18 @@
-const http = require("http");
 const express = require("express");
 const { sendPosts, endPointMessage } = require("./functions");
 const cors = require("cors");
-const app = express();
 const MongoClient = require("mongodb").MongoClient;
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
-// const dotenv = require("dotenv");
-// dotenv.config();
+
+const app = express();
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(express.json());
+
 require("dotenv").config();
+
 app.use(
   session({
     secret: "secret1111",
@@ -20,11 +23,11 @@ app.use(
     cookie: {
       // cookie가 사라지는 시간
       maxAge: 60 * 1000,
+      httpOnly: true,
+      domain: "http://d117-125-178-66-55.ngrok.io",
     },
   })
 );
-app.use(passport.initialize());
-app.use(passport.session());
 
 let db;
 MongoClient.connect(process.env.MONGODB_STORE, function (error, client) {
@@ -37,14 +40,13 @@ MongoClient.connect(process.env.MONGODB_STORE, function (error, client) {
   });
 });
 
-app.use(express.json());
 app.use(
   cors({
     // To allow requests from client
     origin: ["http://localhost:3000"],
     credentials: true,
-    // exposedHeaders: ["Set-Cookie"],
-    // withCredentials: true,
+    exposedHeaders: ["Set-Cookie"],
+    withCredentials: true,
   })
 );
 
@@ -61,15 +63,21 @@ app.post("/add", function (req, res) {
     .find()
     .toArray((err, res) => {
       db.collection("users").insertOne(
-        { _id: res.length, name: req.body.name },
+        {
+          _id: res.length,
+          id: req.body.id,
+          name: req.body.name,
+          pw: req.body.pw,
+        },
         () => {
-          console.log("저장완료");
+          console.log("저장완료1");
         }
       );
       db.collection("userCount").insertOne({ name: "postNumber" }, () => {
-        console.log("저장완료");
+        console.log("저장완료2");
       });
     });
+  res.status(200).send("200");
 });
 
 app.get("/product", sendPosts);
@@ -78,7 +86,7 @@ app.post(
   "/login",
   passport.authenticate("local", { failureRedirect: "/fail" }),
   function (req, res) {
-    res.status(200).json(req.session);
+    res.status(200).json({ ...req.session, name: req.user.name });
   }
 );
 
@@ -91,10 +99,12 @@ passport.use(
       passReqToCallback: false,
     },
     function (입력한아이디, 입력한비번, done) {
-      db.collection("login").findOne(
+      db.collection("users").findOne(
         { id: 입력한아이디 },
-        function (에러, 결과) {
-          if (에러) return done(에러);
+        function (err, 결과) {
+          if (err) {
+            return done(err);
+          }
 
           if (!결과) {
             return done(null, false, { message: "존재하지않는 아이디요" });
